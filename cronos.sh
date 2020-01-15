@@ -38,8 +38,8 @@ CR_KERNEL=$CR_DIR/arch/arm64/boot/Image
 # Compiled dtb by dtbtool
 CR_DTB=$CR_DIR/boot.img-dtb
 # Kernel Name and Version
-CR_VERSION=V4.0
-CR_NAME=CronosKernel
+CR_VERSION=V1.0
+CR_NAME=WirusMOD-CronosKernel
 # Thread count
 CR_JOBS=$(nproc --all)
 # Target Android version
