@@ -172,7 +172,7 @@ BUILD_GENERATE_CONFIG()
 	echo "Building defconfig for $CR_VARIANT"
   echo " "
   # Respect CLEAN build rules
-  BUILD_CLEAN
+  # BUILD_CLEAN
   if [ -e $CR_DIR/arch/$CR_ARCH/configs/tmp_defconfig ]; then
     echo " cleanup old configs "
     rm -rf $CR_DIR/arch/$CR_ARCH/configs/tmp_defconfig
@@ -285,7 +285,7 @@ PACK_BOOT_IMG()
 	echo " "
 	$CR_AIK/cleanup.sh
 	# Respect CLEAN build rules
-	BUILD_CLEAN
+	# BUILD_CLEAN
 }
 # Main Menu
 clear
