@@ -19,7 +19,7 @@
 # Main Dir
 CR_DIR=$(pwd)
 # Define toolchan path
-CR_TC=~/PLATFORM/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin/aarch64-linux-android-
+CR_TC=~/Android/Toolchains/linaro-4.9.4-aarch64-linux/bin/aarch64-linux-gnu-
 # Define proper arch and dir for dts files
 CR_DTS=arch/arm64/boot/dts
 CR_DTS_TREBLE=arch/arm64/boot/exynos8890_Treble.dtsi
@@ -38,8 +38,8 @@ CR_KERNEL=$CR_DIR/arch/arm64/boot/Image
 # Compiled dtb by dtbtool
 CR_DTB=$CR_DIR/boot.img-dtb
 # Kernel Name and Version
-CR_VERSION=V1.0
-CR_NAME=WirusMOD-CronosKernel-V1.1
+CR_VERSION=TWRP
+CR_NAME=CronosKernel
 # Thread count
 CR_JOBS=$(nproc --all)
 # Target Android version
@@ -90,29 +90,10 @@ else
      CR_CLEAN="0"
 fi
 
-# Treble / OneUI
-read -p "Variant? (1 (OneUI-Treble) | 2 (AOSP-Treble) | 3 (OneUI) | 4 (OneUI Q) > " aud
-if [ "$aud" = "1" ]; then
-     echo "Build OneUI-Treble Variant"
+     echo "Build TWRP Variant"
      CR_MODE="1"
      CR_PERMISSIVE="1"
-fi
-if [ "$aud" = "2" ]; then
-     echo "Build AOSP-Treble Variant"
-     CR_MODE="2"
-     CR_PERMISSIVE="1"
-fi
-if [ "$aud" = "3" ]; then
-     echo "Build OneUI Variant"
-     CR_MODE="3"
-     CR_PERMISSIVE="1"
-fi
-if [ "$aud" = "4" ]; then
-     echo "Build OneUI Q Variant"
-     CR_MODE="4"
-     CR_PERMISSIVE="1"
-     CR_HALLIC="1"
-fi
+     CR_HALLIC="0"
 
 # Got Root?
 #read -p "Kernel SU? (y/n) > " yn
@@ -172,7 +153,7 @@ BUILD_GENERATE_CONFIG()
 	echo "Building defconfig for $CR_VARIANT"
   echo " "
   # Respect CLEAN build rules
-  # BUILD_CLEAN
+  BUILD_CLEAN
   if [ -e $CR_DIR/arch/$CR_ARCH/configs/tmp_defconfig ]; then
     echo " cleanup old configs "
     rm -rf $CR_DIR/arch/$CR_ARCH/configs/tmp_defconfig
@@ -189,16 +170,19 @@ BUILD_GENERATE_CONFIG()
     echo " Copy $CR_CONFIG_TYPE "
     cat $CR_DIR/arch/$CR_ARCH/configs/$CR_CONFIG_TYPE >> $CR_DIR/arch/$CR_ARCH/configs/tmp_defconfig
   fi
-  echo " Copy $CR_CONFIG_CRONOS "
-  cat $CR_DIR/arch/$CR_ARCH/configs/$CR_CONFIG_CRONOS >> $CR_DIR/arch/$CR_ARCH/configs/tmp_defconfig
   if [ $CR_PERMISSIVE = "1" ]; then
     echo " Building Permissive Kernel"
     echo "CONFIG_ALWAYS_PERMISSIVE=y" >> $CR_DIR/arch/$CR_ARCH/configs/tmp_defconfig
   fi
-  if [ $CR_HALLIC = "1" ]; then
-    echo " Inverting HALL_IC Status"
-    echo "CONFIG_HALL_EVENT_REVERSE=y" >> $CR_DIR/arch/$CR_ARCH/configs/tmp_defconfig
-  fi
+  echo " Disable S-PEN"
+  echo "# CONFIG_INPUT_WACOM is not set" >> $CR_DIR/arch/$CR_ARCH/configs/tmp_defconfig
+  echo "# CONFIG_EPEN_WACOM_W9018 is not set" >> $CR_DIR/arch/$CR_ARCH/configs/tmp_defconfig
+  echo " Configure TWRP"
+  echo "CONFIG_RD_LZMA=y" >> $CR_DIR/arch/$CR_ARCH/configs/tmp_defconfig
+  echo "CONFIG_DECOMPRESS_LZMA=y" >> $CR_DIR/arch/$CR_ARCH/configs/tmp_defconfig
+  echo "CONFIG_CC_OPTIMIZE_FOR_SIZE=y" >> $CR_DIR/arch/$CR_ARCH/configs/tmp_defconfig
+  echo "CONFIG_F2FS_FS=y" >> $CR_DIR/arch/$CR_ARCH/configs/tmp_defconfig
+  echo "CONFIG_F2FS_FS_SECURITY=y" >> $CR_DIR/arch/$CR_ARCH/configs/tmp_defconfig
   echo " Set $CR_VARIANT to generated config "
   CR_CONFIG=tmp_defconfig
 }
@@ -210,8 +194,6 @@ BUILD_OUT()
   echo "$CR_VARIANT kernel build finished."
   echo "Compiled DTB Size = $sizdT Kb"
   echo "Kernel Image Size = $sizT Kb"
-  echo "Boot Image   Size = $sizkT Kb"
-  echo "$CR_PRODUCT/$CR_IMAGE_NAME.img Ready"
   echo "Press Any key to end the script"
   echo "----------------------------------------------"
 }
@@ -222,7 +204,7 @@ BUILD_ZIMAGE()
 	echo " "
 	echo "Building zImage for $CR_VARIANT"
 	export LOCALVERSION=-$CR_IMAGE_NAME
-  	cp $CR_DTB_MOUNT $CR_DTS/exynos8890.dtsi
+  cp $CR_DTB_MOUNT $CR_DTS/exynos8890.dtsi
 	echo "Make $CR_CONFIG"
 	make $CR_CONFIG
 	make -j$CR_JOBS
@@ -265,27 +247,13 @@ PACK_BOOT_IMG()
 {
 	echo "----------------------------------------------"
 	echo " "
-	echo "Building Boot.img for $CR_VARIANT"
-	# Copy Ramdisk
-	cp -rf $CR_RAMDISK/* $CR_AIK
-	# Move Compiled kernel and dtb to A.I.K Folder
-	mv $CR_KERNEL $CR_AIK/split_img/boot.img-zImage
-	mv $CR_DTB $CR_AIK/split_img/boot.img-dtb
-	# Create boot.img
-	$CR_AIK/repackimg.sh
-	# Remove red warning at boot
-	echo -n "SEANDROIDENFORCE" » $CR_AIK/image-new.img
-	# Copy boot.img to Production folder
-	cp $CR_AIK/image-new.img $CR_PRODUCT/$CR_IMAGE_NAME.img
-	# Move boot.img to out dir
-	mv $CR_AIK/image-new.img $CR_OUT/$CR_IMAGE_NAME.img
-	du -k "$CR_OUT/$CR_IMAGE_NAME.img" | cut -f1 >sizkT
-	sizkT=$(head -n 1 sizkT)
-	rm -rf sizkT
+	echo "Building TWRP for $CR_VARIANT"
+	# Move Compiled kernel and dtb to Cronos Folder
+	mv $CR_KERNEL $CR_PRODUCT/kernel-$CR_VARIANT
+	mv $CR_DTB $CR_PRODUCT/dt.img-$CR_VARIANT
 	echo " "
-	$CR_AIK/cleanup.sh
 	# Respect CLEAN build rules
-	# BUILD_CLEAN
+	BUILD_CLEAN
 }
 # Main Menu
 clear
@@ -300,33 +268,10 @@ do
         "SM-G930X")
             clear
             echo "Starting $CR_VARIANT_G930 kernel build..."
-            if [ $CR_MODE = "1" ]; then
-              echo " Building Oneui-Treble variant "
-              CR_CONFIG_TYPE=$CR_CONFIG_TREBLE_ONEUI
-              CR_VARIANT=$CR_VARIANT_G930-TrebleTW
-              CR_DTB_MOUNT=$CR_DTS_TREBLE
-              CR_RAMDISK=$CR_RAMDISK_TREBLE
-            fi
-            if [ $CR_MODE = "2" ]; then
-              echo " Building AOSP-Treble variant "
-              CR_CONFIG_TYPE=$CR_CONFIG_TREBLE
-              CR_VARIANT=$CR_VARIANT_G930-Treble
-              CR_DTB_MOUNT=$CR_DTS_TREBLE
-              CR_RAMDISK=$CR_RAMDISK_TREBLE
-            fi
-            if [ $CR_MODE = "3" ]; then
-              echo " Building OneUI variant "
-              CR_CONFIG_TYPE=$CR_CONFIG_ONEUI
-              CR_VARIANT=$CR_VARIANT_G930-TW
-              CR_DTB_MOUNT=$CR_DTS_ONEUI
-            fi
-            if [ $CR_MODE = "4" ]; then
-              echo " Building Oneui-Q variant "
-              CR_CONFIG_TYPE=$CR_CONFIG_ONEUI
-              CR_VARIANT=$CR_VARIANT_G930-Q
-              CR_DTB_MOUNT=$CR_DTS_ONEUI
-              CR_RAMDISK=$CR_RAMDISK_Q
-            fi
+            echo " Building TWRP variant "
+            CR_CONFIG_TYPE=$CR_CONFIG_TREBLE
+            CR_VARIANT=$CR_VARIANT_G930
+            CR_DTB_MOUNT=$CR_DTS_ONEUI
             CR_CONFIG=$CR_CONFIG_8890
             CR_CONFIG_SPLIT=$CR_CONFIG_G930
             CR_DTSFILES=$CR_DTSFILES_G930
@@ -335,7 +280,6 @@ do
             BUILD_ZIMAGE
             BUILD_DTB
             PACK_BOOT_IMG
-            BUILD_ROOT
             BUILD_OUT
             read -n1 -r key
             break
@@ -343,33 +287,10 @@ do
         "SM-G935X")
             clear
             echo "Starting $CR_VARIANT_G935 kernel build..."
-            if [ $CR_MODE = "1" ]; then
-              echo " Building Oneui-Treble variant "
-              CR_CONFIG_TYPE=$CR_CONFIG_ONEUI
-              CR_VARIANT=$CR_VARIANT_G935-TrebleTW
-              CR_DTB_MOUNT=$CR_DTS_TREBLE
-              CR_RAMDISK=$CR_RAMDISK_TREBLE
-            fi
-            if [ $CR_MODE = "2" ]; then
-              echo " Building AOSP-Treble variant "
-              CR_CONFIG_TYPE=$CR_CONFIG_TREBLE
-              CR_VARIANT=$CR_VARIANT_G935-Treble
-              CR_DTB_MOUNT=$CR_DTS_TREBLE
-              CR_RAMDISK=$CR_RAMDISK_TREBLE
-            fi
-            if [ $CR_MODE = "3" ]; then
-              echo " Building OneUI variant "
-              CR_CONFIG_TYPE=$CR_CONFIG_ONEUI
-              CR_VARIANT=$CR_VARIANT_G935-TW
-              CR_DTB_MOUNT=$CR_DTS_ONEUI
-            fi
-            if [ $CR_MODE = "4" ]; then
-              echo " Building Oneui-Q variant "
-              CR_CONFIG_TYPE=$CR_CONFIG_ONEUI
-              CR_VARIANT=$CR_VARIANT_G935-Q
-              CR_DTB_MOUNT=$CR_DTS_ONEUI
-              CR_RAMDISK=$CR_RAMDISK_Q
-            fi
+            echo " Building TWRP variant "
+            CR_CONFIG_TYPE=$CR_CONFIG_TREBLE
+            CR_VARIANT=$CR_VARIANT_G935
+            CR_DTB_MOUNT=$CR_DTS_ONEUI
             CR_CONFIG=$CR_CONFIG_8890
             CR_CONFIG_SPLIT=$CR_CONFIG_G935
             CR_DTSFILES=$CR_DTSFILES_G935
@@ -378,7 +299,6 @@ do
             BUILD_ZIMAGE
             BUILD_DTB
             PACK_BOOT_IMG
-            BUILD_ROOT
             BUILD_OUT
             read -n1 -r key
             break
@@ -386,33 +306,10 @@ do
         "SM-N935X")
             clear
             echo "Starting $CR_VARIANT_N935 kernel build..."
-            if [ $CR_MODE = "1" ]; then
-              echo " Building Oneui-Treble variant "
-              CR_CONFIG_TYPE=$CR_CONFIG_ONEUI
-              CR_VARIANT=$CR_VARIANT_N935-TrebleTW
-              CR_DTB_MOUNT=$CR_DTS_TREBLE
-              CR_RAMDISK=$CR_RAMDISK_TREBLE
-            fi
-            if [ $CR_MODE = "2" ]; then
-              echo " Building AOSP-Treble variant "
-              CR_CONFIG_TYPE=$CR_CONFIG_TREBLE
-              CR_VARIANT=$CR_VARIANT_N935-Treble
-              CR_DTB_MOUNT=$CR_DTS_TREBLE
-              CR_RAMDISK=$CR_RAMDISK_TREBLE
-            fi
-            if [ $CR_MODE = "3" ]; then
-              echo " Building OneUI variant "
-              CR_CONFIG_TYPE=$CR_CONFIG_ONEUI
-              CR_VARIANT=$CR_VARIANT_N935-TW
-              CR_DTB_MOUNT=$CR_DTS_ONEUI
-            fi
-            if [ $CR_MODE = "4" ]; then
-              echo " Building Oneui-Q variant "
-              CR_CONFIG_TYPE=$CR_CONFIG_ONEUI
-              CR_VARIANT=$CR_VARIANT_N935-Q
-              CR_DTB_MOUNT=$CR_DTS_ONEUI
-              CR_RAMDISK=$CR_RAMDISK_Q
-            fi
+            echo " Building TWRP variant "
+            CR_CONFIG_TYPE=$CR_CONFIG_TREBLE
+            CR_VARIANT=$CR_VARIANT_N935
+            CR_DTB_MOUNT=$CR_DTS_ONEUI
             CR_CONFIG=$CR_CONFIG_8890
             CR_CONFIG_SPLIT=$CR_CONFIG_N935
             CR_DTSFILES=$CR_DTSFILES_N935
@@ -421,7 +318,6 @@ do
             BUILD_ZIMAGE
             BUILD_DTB
             PACK_BOOT_IMG
-            BUILD_ROOT
             BUILD_OUT
             read -n1 -r key
             break
